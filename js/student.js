@@ -48,10 +48,11 @@ requireAuth()
       return;
     }
 
-    currentStudent = await studentProfile(student.uid, student);
+    [currentStudent, requiredApprovers] = await Promise.all([
+      studentProfile(student.uid, student),
+      getRequiredApprovers(student.uid).catch(() => [])
+    ]);
     PROFILE_PHOTO_KEY = `digitalNoDueStudentPhoto:${student.uid}`;
-    try { requiredApprovers = await getRequiredApprovers(student.uid); } catch { requiredApprovers = []; }
-
     await loadRequests();
 
     setupNavigation();

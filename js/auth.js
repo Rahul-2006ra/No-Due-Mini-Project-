@@ -99,8 +99,8 @@ export function wireLoginForm() {
     submitBtn.textContent = "Logging in...";
 
     try {
-    const resolved=await publicPost('/api/auth/login',{identifier:email,password});
-    await signInWithEmailAndPassword(auth, resolved.email, password);
+    const loginEmail = email.includes("@") ? email : (await publicPost('/api/auth/login',{identifier:email,password})).email;
+    await signInWithEmailAndPassword(auth, loginEmail, password);
 
 let profile = await getCurrentUserProfile();
 if(profile?.mustChangePassword){try{await post('/api/auth/password-complete',{});profile=await getCurrentUserProfile();}catch{/* Firebase proof is required; otherwise retain the reminder flag. */}}
