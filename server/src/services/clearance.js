@@ -22,11 +22,17 @@ export async function enrollmentPlan(db,uid) {
   const student=(await db.doc(`students/${uid}`).get()).data(),config=(await db.doc('settings/workflow').get()).data();
   if(!student || !config) throw new Error('Student profile and workflow assignments are required.');
   const enrolled=await db.collection('enrollments').where('studentId','==',uid).where('active','==',true).get();
+  const offeringIds=enrolled.docs.map(r=>r.data().offeringId).filter(Boolean);
+  const offeringsSnap=offeringIds.length?await db.collection('offerings').where('__name__','in',offeringIds).get():{docs:[]};
+  const offeringsMap=new Map(offeringsSnap.docs.map(d=>[d.id,{...d.data(),id:d.id}]));
+  const teacherIds=[...new Set([...offeringsMap.values()].map(o=>o.teacherId).filter(Boolean))];
+  const teachersSnap=teacherIds.length?await db.collection('users').where('__name__','in',teacherIds).get():{docs:[]};
+  const teachersMap=new Map(teachersSnap.docs.map(d=>[d.id,d.data()]));
   const items={};
   for(const row of enrolled.docs) {
-    const e=row.data(),snap=await db.doc(`offerings/${e.offeringId}`).get(),o={...snap.data(),id:snap.id};
-    if(!snap.exists || !matchesStudent(student,o)) continue;
-    const teacher=(await db.doc(`users/${o.teacherId}`).get()).data();
+    const e=row.data(),o=offeringsMap.get(e.offeringId);
+    if(!o || !matchesStudent(student,o)) continue;
+    const teacher=teachersMap.get(o.teacherId);
     if(!teacher || !['subject_faculty','mentor'].includes(teacher.role) || e.teacherId!==o.teacherId) throw new Error('An enrolled subject has an invalid teacher mapping. Ask the administrator to refresh it.');
     const identity=[String(o.subjectCode).trim().toUpperCase(),o.teacherId,Number(o.semester),text(o.section).toUpperCase(),department(o.department||student.department),text(o.scheme||student.scheme)].join('|');
     if(Object.values(items).some(i=>i.subjectIdentity===identity))continue;
@@ -34,13 +40,16 @@ export async function enrollmentPlan(db,uid) {
   }
   const count=Object.keys(items).length;
   if(!count || count>30) throw new Error('Assign 1–30 active subjects matching the student academic context.');
+  const serviceIds=[...REQUIRED_SERVICES.map(t=>config[t]),student.mentorId,config.hodId,config.officeId].filter(Boolean);
+  const serviceDocs=await Promise.all(serviceIds.map(id=>db.doc(`users/${id}`).get()));
+  const serviceMap=new Map(serviceDocs.map(d=>[d.id,d.data()]));
   for(const type of REQUIRED_SERVICES) {
-    const user=config[type] && (await db.doc(`users/${config[type]}`).get()).data();
+    const user=serviceMap.get(config[type]);
     if(user?.role!==type) throw new Error(`Configure the ${type} approver.`);
     items[type]={approverType:type,approverId:config[type],label:type,subjectCode:null,offeringId:null};
   }
   for(const [id,role] of [[student.mentorId,'mentor'],[config.hodId,'hod'],[config.officeId,'office']]) {
-    if(!id || (await db.doc(`users/${id}`).get()).data()?.role!==role) throw new Error(`Configure the assigned ${role}.`);
+    if(!id || serviceMap.get(id)?.role!==role) throw new Error(`Configure the assigned ${role}.`);
   }
   return {valid:true,workflowVersion:3,items,initialStates:Object.fromEntries(Object.keys(items).map(id=>[id,'pending'])),
     approverIds:[...new Set(Object.values(items).map(item=>item.approverId))],mentorId:student.mentorId,
