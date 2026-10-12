@@ -58,12 +58,58 @@ async function render() {
       ${field('name','Full Name','text',true,'e.g. Rahul Sharma')}
       ${field('collegeEmail','Official College Email','email',true,'e.g. rahul@college.edu')}
       ${field('phone','Phone Number','text',false,'e.g. 9876543210')}
-      ${field('department','Academic Department','text',true,'e.g. ISE or Information Science')}
+      <label class="form-field-group">
+        <span class="field-label">Academic Department <span style="color:#e53e3e">*</span></span>
+        <select name="department" required>
+          <option value="">-- Select Department --</option>
+          <option value="CSE">CSE - Computer Science &amp; Engineering</option>
+          <option value="ISE">ISE - Information Science &amp; Engineering</option>
+          <option value="AIML">AIML - Artificial Intelligence &amp; Machine Learning</option>
+          <option value="AIDS">AIDS - Artificial Intelligence &amp; Data Science</option>
+          <option value="CIVIL">CIVIL - Civil Engineering</option>
+          <option value="MECHANICAL">MECHANICAL - Mechanical Engineering</option>
+          <option value="ECE">ECE - Electronics &amp; Communication Engineering</option>
+          <option value="POLYTECHNIC">POLYTECHNIC</option>
+          <option value="ELECTRICAL">ELECTRICAL - Electrical &amp; Electronics Engineering</option>
+        </select>
+      </label>
       ${field('facultyId','Staff / Employee ID (For Teachers & Staff)','text',false,'e.g. EMP1024')}
       ${field('usn','University Seat Number / USN (For Students)','text',false,'e.g. 1MS21IS001')}
-      ${field('semester','Semester Number (For Students)','number',false,'1 to 8')}
-      ${field('section','Class Section (For Students)','text',false,'e.g. A, B, or C')}
-      ${field('scheme','Curriculum Scheme Year (For Students)','text',false,'e.g. 2022')}
+      <label class="form-field-group">
+        <span class="field-label">Semester (For Students)</span>
+        <select name="semester">
+          <option value="">-- Select Semester (1st to 8th) --</option>
+          <option value="1">1st Semester</option>
+          <option value="2">2nd Semester</option>
+          <option value="3">3rd Semester</option>
+          <option value="4">4th Semester</option>
+          <option value="5">5th Semester</option>
+          <option value="6">6th Semester</option>
+          <option value="7">7th Semester</option>
+          <option value="8">8th Semester</option>
+        </select>
+      </label>
+      <label class="form-field-group">
+        <span class="field-label">Class Section (For Students)</span>
+        <select name="section">
+          <option value="">-- Select Section (A, B, C, D) --</option>
+          <option value="A">Section A</option>
+          <option value="B">Section B</option>
+          <option value="C">Section C</option>
+          <option value="D">Section D</option>
+        </select>
+      </label>
+      <label class="form-field-group">
+        <span class="field-label">Curriculum Scheme (For Students)</span>
+        <select name="scheme">
+          <option value="">-- Select Scheme (2022 to 2026) --</option>
+          <option value="2022">2022 Scheme</option>
+          <option value="2023">2023 Scheme</option>
+          <option value="2024">2024 Scheme</option>
+          <option value="2025">2025 Scheme</option>
+          <option value="2026">2026 Scheme</option>
+        </select>
+      </label>
       <label class="form-field-group">
         <span class="field-label">Assigned Faculty Mentor (For Students)</span>
         <small class="field-hint" style="display:block;color:var(--text-muted);font-size:12px;margin-bottom:4px;">Select from existing faculty mentors or type their official email below.</small>
