@@ -1,6 +1,7 @@
 import { db } from "./firebase-config.js";
 import { collection, doc, getDoc, getDocs, query, where, limit, orderBy, startAfter, setDoc, serverTimestamp } from "./api-store.js";
 import { escapeHtml as e, profileHTML } from "./ui.js";
+import { post } from "./api.js";
 
 export async function record(collectionName, id) {
   if (!id) return null;
@@ -16,6 +17,12 @@ export async function studentProfile(uid, fallback = {}) {
   return { ...fallback, ...(await record("students", uid) || {}), uid };
 }
 export async function academicDetails(uid) {
+  try {
+    const summary = await post('/api/academic/summary', { uid });
+    if (summary && summary.student) return summary;
+  } catch (err) {
+    console.warn("Falling back to standard academic queries:", err);
+  }
   const student = await studentProfile(uid);
   const [mentor, enrollments] = await Promise.all([record("users", student.mentorId), page("enrollments", [["studentId", "==", uid], ["active", "==", true]], null, 31)]);
   const subjects = await Promise.all(enrollments.rows.map(async enrollment => {
