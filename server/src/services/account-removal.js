@@ -39,8 +39,20 @@ export async function accountExit({database,client,auth,actor,input={},restoreSt
   if(input.cursor){if(!/^[A-Za-z0-9_-]{1,128}$/.test(input.cursor))fail('Invalid directory cursor.');filter._id={$gt:input.cursor};}
   const maximum=action==='export'?10001:51,profiles=await database.collection('users').find(filter).sort({_id:1}).limit(maximum).toArray();
   if(action==='export'&&profiles.length>10000)fail('Export exceeds 10,000 accounts; use a smaller directory scope.');
-  const more=action==='directory'&&profiles.length>50,selected=more?profiles.slice(0,50):profiles,rows=[];
-  for(const p of selected){const s=p.role==='student'?await database.collection('students').findOne({_id:p._id}):null;const offerings=p.role==='student'?[]:await database.collection('offerings').find({teacherId:p._id,active:{$ne:false}}).toArray();rows.push({uid:p._id,name:p.name,email:p.email,phone:s?.phone||p.phone||'',identifier:s?.usn||p.facultyId||'',department:s?.department||p.department||'',semester:s?.semester??'',section:s?.section||'',scheme:s?.scheme||'',role:p.role,subjects:offerings.map(o=>`${o.subjectCode} ${o.subjectName} (Sem ${o.semester}, ${o.section})`).join(' | '),accountStatus:p.accountStatus||'active'});}
+  const more=action==='directory'&&profiles.length>50,selected=more?profiles.slice(0,50):profiles;
+  const studentUids=selected.filter(p=>p.role==='student').map(p=>p._id);
+  const teacherUids=selected.filter(p=>p.role!=='student').map(p=>p._id);
+  const [studentsDocs,offeringsDocs]=await Promise.all([
+    studentUids.length?database.collection('students').find({_id:{$in:studentUids}}).toArray():[],
+    teacherUids.length?database.collection('offerings').find({teacherId:{$in:teacherUids},active:{$ne:false}}).toArray():[]
+  ]);
+  const studentsMap=new Map(studentsDocs.map(s=>[s._id,s])),offeringsMap=new Map();
+  for(const o of offeringsDocs){if(!offeringsMap.has(o.teacherId))offeringsMap.set(o.teacherId,[]);offeringsMap.get(o.teacherId).push(o);}
+  const rows=selected.map(p=>{
+    const s=p.role==='student'?studentsMap.get(p._id):null;
+    const offerings=p.role==='student'?[]:(offeringsMap.get(p._id)||[]);
+    return {uid:p._id,name:p.name,email:p.email,phone:s?.phone||p.phone||'',identifier:s?.usn||p.facultyId||'',department:s?.department||p.department||'',semester:s?.semester??'',section:s?.section||'',scheme:s?.scheme||'',role:p.role,subjects:offerings.map(o=>`${o.subjectCode} ${o.subjectName} (Sem ${o.semester}, ${o.section})`).join(' | '),accountStatus:p.accountStatus||'active'};
+  });
   if(action==='directory')return {rows,more,cursor:more?rows.at(-1).uid:null};
   const headers=['name',input.kind==='student'?'usn':'employeeId','collegeEmail','phone','department','semester','section','scheme','role','assignedSubjects','status'];
   const quote=value=>'"'+String(value??'').replace(/^[=+@\-\t\r]/,"'$&").replaceAll('"','""')+'"';
