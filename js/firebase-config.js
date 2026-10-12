@@ -21,13 +21,14 @@ const firebaseConfig = {
   measurementId: "G-4SRWS9J371"
 };
 // Initialize Firebase
-// The dedicated emulator Hosting port always selects the demo project, including new tabs.
-// Other local servers can opt in explicitly with ?emulator=1.
-const useEmulators = ["localhost", "127.0.0.1"].includes(location.hostname)
-  && (location.port === "5050" || new URLSearchParams(location.search).get("emulator") === "1");
-if (useEmulators) sessionStorage.setItem("digitalNoDueEmulator", "1");
+// Only connect to local emulator if explicitly requested via ?emulator=1 query parameter
+const emulatorParam = new URLSearchParams(location.search).get("emulator") === "1";
+if (emulatorParam) sessionStorage.setItem("digitalNoDueEmulator", "1");
+else if (new URLSearchParams(location.search).get("emulator") === "0") sessionStorage.removeItem("digitalNoDueEmulator");
+
 const emulatorSession = ["localhost", "127.0.0.1"].includes(location.hostname)
   && sessionStorage.getItem("digitalNoDueEmulator") === "1";
+
 const app = initializeApp(emulatorSession ? { apiKey: "fake-api-key", authDomain: "demo-digital-no-due.firebaseapp.com", projectId: "demo-digital-no-due", appId: "demo-digital-no-due-local" } : firebaseConfig);
 export const auth = getAuth(app);
 export const db = Object.freeze({});
