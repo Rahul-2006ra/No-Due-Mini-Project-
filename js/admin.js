@@ -19,15 +19,98 @@ const fields = {
   assignments: ["id","offeringId","title","description","dueDate","status"],
   settings: [...SERVICES,"hodId","officeId"]
 };
+const tabTitles = {
+  students: "🎓 Student Records",
+  users: "👥 Faculty & Staff Accounts",
+  subjects: "📘 Course Subjects",
+  offerings: "🏫 Classes & Teacher Assignments",
+  enrollments: "📝 Student Course Enrollments",
+  assignments: "📋 Class Assignments",
+  settings: "⚙️ Institutional Approver Roles"
+};
+const fieldLabels = {
+  uid: "User Account ID (Firebase UID)",
+  id: "Record ID / Document ID",
+  name: "Full Name",
+  role: "Account Role",
+  email: "College Email Address",
+  phone: "Phone Number",
+  facultyId: "Faculty / Employee ID",
+  department: "Academic Department",
+  usn: "University Seat Number (USN)",
+  semester: "Semester Number (1 to 8)",
+  section: "Section (A, B, C...)",
+  mentorId: "Assigned Mentor UID",
+  scheme: "Curriculum Scheme (e.g. 2022)",
+  code: "Subject Code (e.g. 21CS51)",
+  subjectId: "Subject ID",
+  teacherId: "Assigned Teacher UID",
+  active: "Active Status (true or false)",
+  studentId: "Student UID",
+  offeringId: "Class / Offering ID",
+  title: "Assignment Title",
+  description: "Assignment Description",
+  dueDate: "Submission Due Date",
+  status: "Current Status",
+  library: "Library Approver UID",
+  accounts: "Accounts Approver UID",
+  hodId: "Head of Department (HOD) UID",
+  officeId: "Administrative Office UID"
+};
+const roleLabels = {
+  student: "Student",
+  subject_faculty: "Subject Faculty",
+  mentor: "Faculty Mentor",
+  hod: "Head of Department (HOD)",
+  office: "College Office",
+  library: "Library In-charge",
+  physics_lab: "Physics Lab In-charge",
+  chemistry_lab: "Chemistry Lab In-charge",
+  accounts: "Accounts / Fee In-charge",
+  admin: "Administrator"
+};
 let selected = "students", cursor, listed = [];
 requireAuth(["admin"]).then(() => render()).catch(error => errorState(content, error));
 async function render() {
-  content.innerHTML = `<div class="banner">Create sign-in accounts in Firebase Authentication, then link their actual UID here.</div><div class="tab-strip">${Object.keys(fields).map(key => `<button class="btn-sm tab" data-key="${key}">${e(({users:"Staff & accounts",offerings:"Classes & teachers",enrollments:"Student subjects",settings:"Workflow assignments"})[key] || key)}</button>`).join("")}</div>
-    <div class="card"><h2>${e(selected)}</h2><form id="recordForm">${fields[selected].map(key => `<label>${e(key)}${key === "role" ? `<select name="role">${ROLES.map(r => `<option>${e(r)}</option>`).join("")}</select>` : `<input name="${e(key)}" ${key === "semester" ? 'type="number" min="1" max="12"' : key === "email" ? 'type="email"' : key === "dueDate" ? 'type="date"' : 'type="text"'}>`}</label>`).join("")}${selected === "offerings" ? '<label>Assessments: ID, label, maximum (one per line)<textarea name="components" rows="4" placeholder="ia1, Internal assessment 1, 30"></textarea></label>' : ""}<button class="btn-primary" type="submit">Save record</button></form><p id="saveMessage" role="status"></p></div>
-    <div class="card"><label>Exact document ID / UID<input id="lookup"></label><button id="lookupBtn" class="btn-sm">Find & edit</button><div id="records"></div><button id="next" class="btn-sm">Load more records</button></div>
-    <div class="card"><h2>Prepare student clearance</h2><label>Student Auth UID<input id="planUid"></label><button id="planBtn" class="btn-primary">Refresh academic mappings & clearance plan</button><p>Run after changing mentor, teacher, class or enrollments. Existing requests retain their assigned approvers.</p></div>
-    <div class="card"><h2>Student CSV import</h2><p>Headers: uid,name,usn,email,phone,semester,section,mentorId. Actual Auth UIDs are required.</p><input id="csv" type="file" accept=".csv"><button id="csvPreviewBtn" class="btn-sm">Preview CSV</button><div id="csvPreview"></div><button id="csvSave" class="btn-primary" disabled>Import reviewed students</button></div>
-    <div class="card"><h2>Legacy request compatibility</h2><label>Existing request ID<input id="legacyId"></label><button id="legacyBtn" class="btn-sm">Review & upgrade existing request</button><p>Preserves existing approvals and request status. Review mappings before confirming.</p></div>`;
+  content.innerHTML = `<div class="banner">ℹ️ Database editor: Directly inspect or adjust individual records in the college database.</div>
+    <div class="tab-strip">${Object.keys(fields).map(key => `<button class="btn-sm tab ${selected===key?'active':''}" data-key="${key}">${e(tabTitles[key] || key)}</button>`).join("")}</div>
+    <div class="card">
+      <h2>${e(tabTitles[selected] || selected)}</h2>
+      <p class="muted">Fill in the fields below to create or update this record.</p>
+      <form id="recordForm">
+        ${fields[selected].map(key => `<label style="margin-bottom:10px;"><span style="font-weight:500;display:block;margin-bottom:3px;">${e(fieldLabels[key] || key)}</span>${key === "role" ? `<select name="role">${ROLES.map(r => `<option value="${e(r)}">${e(roleLabels[r] || r)}</option>`).join("")}</select>` : `<input name="${e(key)}" placeholder="Enter ${e(fieldLabels[key] || key)}" ${key === "semester" ? 'type="number" min="1" max="12"' : key === "email" ? 'type="email"' : key === "dueDate" ? 'type="date"' : 'type="text"'}>`}</label>`).join("")}
+        ${selected === "offerings" ? '<label style="margin-top:8px;"><span style="font-weight:500;display:block;margin-bottom:3px;">Assessments Breakdown: ID, Title, Max Marks (one per line)</span><textarea name="components" rows="4" placeholder="ia1, Internal Assessment 1, 30\nia2, Internal Assessment 2, 30"></textarea></label>' : ""}
+        <button class="btn-primary" type="submit" style="margin-top:10px;">Save Record</button>
+      </form>
+      <p id="saveMessage" role="status"></p>
+    </div>
+    <div class="card">
+      <h2>Search &amp; Edit Existing ${e(tabTitles[selected] || selected)}</h2>
+      <label><span style="font-weight:500;display:block;margin-bottom:3px;">Record ID or UID</span><input id="lookup" placeholder="Paste exact ID to search"></label>
+      <button id="lookupBtn" class="btn-primary" style="margin-top:4px;">Find &amp; Edit Record</button>
+      <div id="records" style="margin-top:14px;"></div>
+      <button id="next" class="btn-sm" style="margin-top:10px;">Load More Records</button>
+    </div>
+    <div class="card">
+      <h2>Rebuild Student Clearance Approvals</h2>
+      <p class="muted">Recalculates required teacher, mentor, and departmental approvers for a student's No-Due application.</p>
+      <label><span style="font-weight:500;display:block;margin-bottom:3px;">Student Account UID</span><input id="planUid" placeholder="e.g. user_abc123"></label>
+      <button id="planBtn" class="btn-primary" style="margin-top:6px;">Update Clearance Approver Plan</button>
+    </div>
+    <div class="card">
+      <h2>Bulk Import Students via CSV</h2>
+      <p class="muted">Upload CSV file with columns: uid, name, usn, email, phone, semester, section, mentorId.</p>
+      <input id="csv" type="file" accept=".csv">
+      <button id="csvPreviewBtn" class="btn-sm">Preview CSV File</button>
+      <div id="csvPreview" style="margin-top:10px;"></div>
+      <button id="csvSave" class="btn-primary" disabled style="margin-top:8px;">Import All Valid Students</button>
+    </div>
+    <div class="card">
+      <h2>Upgrade Existing No-Due Application</h2>
+      <p class="muted">Migrate an older application to the current clearance workflow while preserving all existing approval timestamps.</p>
+      <label><span style="font-weight:500;display:block;margin-bottom:3px;">Application / Request ID</span><input id="legacyId" placeholder="e.g. req_xyz"></label>
+      <button id="legacyBtn" class="btn-sm" style="margin-top:6px;">Upgrade Application</button>
+    </div>`;
   document.querySelectorAll(".tab").forEach(b => b.onclick = () => { selected = b.dataset.key; cursor = null; listed = []; render().catch(error => errorState(content,error)); });
   document.getElementById("recordForm").onsubmit = event => { event.preventDefault(); busy(event.target.querySelector("button"), () => save(new FormData(event.target))); };
   document.getElementById("lookupBtn").onclick = event => busy(event.target, async () => { const row = await record(selected, document.getElementById("lookup").value.trim()); if (!row) throw new Error("Record not found."); edit(row); });

@@ -13,15 +13,135 @@ const api=async(action,data={})=>(await callable({action,...data})).data;
 const content=document.getElementById('content');
 wireLogout();initThemeToggle();
 let preview=[],results=[],jobId='',previewPage=0,exitManager;
-const field=(name,label,type='text',required=false)=>`<label>${e(label)}<input name="${e(name)}" type="${type}" ${required?'required':''}></label>`;
+const field=(name,label,type='text',required=false,placeholder='',hint='')=>`<label class="form-field-group"><span class="field-label">${e(label)}${required?' <span style="color:#e53e3e">*</span>':''}</span>${hint?`<small class="field-hint" style="display:block;color:var(--text-muted);font-size:12px;margin-bottom:4px;">${e(hint)}</small>`:''}<input name="${e(name)}" type="${type}" ${placeholder?`placeholder="${e(placeholder)}"`:''} ${required?'required':''}></label>`;
 requireAuth(['admin']).then(render).catch(error=>errorState(content,error));
 async function render() {
-  content.innerHTML=`<div class="banner">${isEmulator?'DEMO EMULATOR — new accounts use DemoPassword123! locally.':'College accounts receive activation email; passwords are never stored in Firestore.'}</div>
-  <nav><a href="advanced-admin.html">Advanced record editing & legacy compatibility</a> · <a href="academic.html">Classes & marks</a></nav>
-  <div class="card"><h2>Institution policy</h2><form id="policyForm">${field('allowedDomains','Allowed college domains (comma-separated)','text',true)}${field('departments','Departments (comma-separated)','text',true)}${field('sections','Sections (comma-separated)','text',true)}${field('smtpHost','Activation SMTP host')}${field('smtpPort','SMTP port (465 or 587)','number')}${field('smtpUser','SMTP username')}${field('mailFrom','Activation sender email','email')}<p>Configure the SMTP password in server Secret Manager; never enter it here.</p><button class="btn-primary">Save institution policy</button></form><p id="policyStatus" role="status"></p></div>
-  <div class="card"><h2>Provision college account</h2><form id="accountForm"><label>Role<select name="role">${ROLES.map(r=>`<option>${r}</option>`).join('')}</select></label>${field('name','Name','text',true)}${field('collegeEmail','College email','email',true)}${field('phone','Phone')}${field('department','Department','text',true)}${field('facultyId','Employee / Faculty ID (staff)')}${field('usn','USN (students)')}${field('semester','Semester (students)','number')}${field('section','Section (students)')}${field('scheme','Scheme (students)')}<label>Mentor college email (students)<input name="mentorEmail" type="email" list="mentorOptions"></label><datalist id="mentorOptions"></datalist>${field('mentorEmployeeId','Mentor employee ID (alternative)')}</form><div class="provision-actions"><button type="submit" form="accountForm" id="validateAccountBtn" class="btn-primary">Validate account</button><button type="button" id="provisionBtn" class="btn-primary" disabled>Confirm & provision account</button></div><div id="accountPreview"></div><p id="accountStatus" role="status"></p></div>
-  <div class="card"><h2>Bulk CSV import</h2><p>Department: Information Science &amp; Engineering (ISE).</p><label>Import type<select id="importType"><option value="students">Students — create accounts and enroll automatically</option><option value="teachers">Teachers / Faculty</option><option value="offerings">Subjects / offerings — resolve existing teachers</option></select></label><p><a href="templates/student-import.csv" download="student-import.csv">Student template</a> · <a href="templates/teacher-import.csv" download="teacher-import.csv">Teacher template</a> · <a href="templates/offering-import.csv" download="offering-import.csv">Offering template</a> · <a href="templates/ise-5c-2022-confirmed.csv" download="ise-5c-2022-confirmed.csv">Confirmed ISE 5C source</a></p><input id="importFile" type="file" accept=".csv"><button id="previewBtn" class="btn-sm">Validate & preview CSV</button><div id="importPreview"></div><button id="previewPrevious" class="btn-sm" hidden>Previous preview rows</button><button id="previewNext" class="btn-sm" hidden>Next preview rows</button><label><input id="acceptWarnings" type="checkbox" style="width:auto"> I reviewed the warnings and will import only VALID / WARNING rows.</label><button id="importBtn" class="btn-primary" disabled>Confirm & import validated rows</button><p id="importProgress" role="status" aria-live="polite"></p><div id="importResults"></div><button id="downloadReport" class="btn-sm" disabled>Download result report</button></div>
-  <div id="exitManagement"></div><div class="card"><h2>Find institutional account</h2><label>Search by<select id="searchField"><option value="email">College email</option><option value="usn">USN</option><option value="facultyId">Employee / Faculty ID</option></select></label><label>Exact value<input id="searchValue"></label><button id="searchBtn" class="btn-sm">Find account</button><div id="searchResults"></div></div>`;
+  content.innerHTML=`<div class="banner">${isEmulator?'DEMO EMULATOR MODE — newly created accounts can sign in with password DemoPassword123! locally.':'Official college accounts will receive an email activation link. Passwords are created securely by users.'}</div>
+  <nav><a href="advanced-admin.html">⚙️ Advanced Records &amp; Class Database</a> · <a href="academic.html">📚 Classes, Subjects &amp; Marks</a></nav>
+  
+  <div class="card">
+    <h2>1. College Institution Settings</h2>
+    <p class="muted">Define authorized email domains, academic departments, and optional email delivery settings for student and staff activation.</p>
+    <form id="policyForm">
+      ${field('allowedDomains','Allowed College Email Domains','text',true,'e.g. college.edu, student.college.edu','Only users with these email domains can register or log in.')}
+      ${field('departments','Academic Departments','text',true,'e.g. ISE, CSE, ECE, MECH, CIVIL','Separate multiple department abbreviations with commas.')}
+      ${field('sections','Class Sections','text',true,'e.g. A, B, C, D','Separate all valid section names with commas.')}
+      ${field('smtpHost','Email Server Host (SMTP)','text',false,'e.g. smtp.gmail.com','Optional: Used to send account welcome emails.')}
+      ${field('smtpPort','Email Server Port','number',false,'465 or 587')}
+      ${field('smtpUser','Email Server Username','text',false,'e.g. admin@college.edu')}
+      ${field('mailFrom','Sender Email Address','email',false,'e.g. no-reply@college.edu','Email address shown in the "From" line.')}
+      <p class="muted" style="font-size:12px;">Security notice: For safety, the SMTP password must only be configured in server environment variables (.env), never entered in the browser.</p>
+      <button class="btn-primary">Save College Settings</button>
+    </form>
+    <p id="policyStatus" role="status"></p>
+  </div>
+
+  <div class="card">
+    <h2>2. Create Single User Account</h2>
+    <p class="muted">Add a new student, teacher, mentor, department head (HOD), office staff, or administrator account.</p>
+    <form id="accountForm">
+      <label class="form-field-group">
+        <span class="field-label">Account Role <span style="color:#e53e3e">*</span></span>
+        <select name="role">
+          <option value="student">Student (Clearance Applicant)</option>
+          <option value="subject_faculty">Subject Faculty (Teacher)</option>
+          <option value="mentor">Faculty Mentor (Proctor)</option>
+          <option value="hod">Head of Department (HOD)</option>
+          <option value="office">Administrative Office Staff</option>
+          <option value="library">Library Clearance In-charge</option>
+          <option value="physics_lab">Physics Lab In-charge</option>
+          <option value="chemistry_lab">Chemistry Lab In-charge</option>
+          <option value="accounts">Accounts &amp; Fee In-charge</option>
+          <option value="admin">System Administrator</option>
+        </select>
+      </label>
+      ${field('name','Full Name','text',true,'e.g. Rahul Sharma')}
+      ${field('collegeEmail','Official College Email','email',true,'e.g. rahul@college.edu')}
+      ${field('phone','Phone Number','text',false,'e.g. 9876543210')}
+      ${field('department','Academic Department','text',true,'e.g. ISE or Information Science')}
+      ${field('facultyId','Staff / Employee ID (For Teachers & Staff)','text',false,'e.g. EMP1024')}
+      ${field('usn','University Seat Number / USN (For Students)','text',false,'e.g. 1MS21IS001')}
+      ${field('semester','Semester Number (For Students)','number',false,'1 to 8')}
+      ${field('section','Class Section (For Students)','text',false,'e.g. A, B, or C')}
+      ${field('scheme','Curriculum Scheme Year (For Students)','text',false,'e.g. 2022')}
+      <label class="form-field-group">
+        <span class="field-label">Assigned Faculty Mentor (For Students)</span>
+        <small class="field-hint" style="display:block;color:var(--text-muted);font-size:12px;margin-bottom:4px;">Select from existing faculty mentors or type their official email below.</small>
+        <input name="mentorEmail" type="email" list="mentorOptions" placeholder="mentor@college.edu">
+      </label>
+      <datalist id="mentorOptions"></datalist>
+      ${field('mentorEmployeeId','Mentor Employee ID (Alternative lookup)','text',false,'e.g. EMP1005')}
+    </form>
+    <div class="provision-actions">
+      <button type="submit" form="accountForm" id="validateAccountBtn" class="btn-primary">Step 1: Check &amp; Verify Account</button>
+      <button type="button" id="provisionBtn" class="btn-primary" disabled>Step 2: Confirm &amp; Create Account</button>
+    </div>
+    <div id="accountPreview" style="margin-top:12px;"></div>
+    <p id="accountStatus" role="status"></p>
+  </div>
+
+  <div class="card">
+    <h2>3. Bulk Import Accounts from CSV File</h2>
+    <p class="muted">Quickly upload entire classes of students, faculty lists, or course offerings in bulk using spreadsheets.</p>
+    <label class="form-field-group">
+      <span class="field-label">Select What You Want to Import:</span>
+      <select id="importType">
+        <option value="students">🎓 Students — Register accounts and map to classes automatically</option>
+        <option value="teachers">👨‍🏫 Teachers &amp; Faculty — Register faculty accounts</option>
+        <option value="offerings">📖 Subjects &amp; Classes — Connect subjects, sections and assigned teachers</option>
+      </select>
+    </label>
+    <p style="margin:10px 0;">
+      <strong>Download CSV sample templates:</strong><br>
+      <a href="templates/student-import.csv" download="student-import.csv">📥 Student List Template</a> · 
+      <a href="templates/teacher-import.csv" download="teacher-import.csv">📥 Teacher List Template</a> · 
+      <a href="templates/offering-import.csv" download="offering-import.csv">📥 Subject Offerings Template</a>
+    </p>
+    <label class="form-field-group">
+      <span class="field-label">Choose CSV File from your computer:</span>
+      <input id="importFile" type="file" accept=".csv">
+    </label>
+    <button id="previewBtn" class="btn-sm">Step 1: Upload &amp; Preview File</button>
+    <div id="importPreview" style="margin-top:12px;"></div>
+    <div style="display:flex;gap:8px;margin:8px 0;">
+      <button id="previewPrevious" class="btn-sm" hidden>← Previous 50 Rows</button>
+      <button id="previewNext" class="btn-sm" hidden>Next 50 Rows →</button>
+    </div>
+    <div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin:12px 0;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;color:var(--text);margin:0;">
+        <input id="acceptWarnings" type="checkbox" style="width:18px;height:18px;margin:0;cursor:pointer;">
+        <span>I have verified the preview and approve importing all valid rows.</span>
+      </label>
+      <small style="display:block;color:var(--text-muted);margin-left:26px;margin-top:4px;">Check this box after reviewing the table above to unlock the import button.</small>
+    </div>
+    <button id="importBtn" class="btn-primary" disabled>Step 2: Confirm &amp; Import Verified Accounts</button>
+    <p id="importProgress" role="status" aria-live="polite"></p>
+    <div id="importResults"></div>
+    <button id="downloadReport" class="btn-sm" disabled>Download Import Summary Report (CSV)</button>
+  </div>
+
+  <div id="exitManagement"></div>
+
+  <div class="card">
+    <h2>4. Quick Account Lookup</h2>
+    <p class="muted">Search for any registered user to check their status, resend invitation emails, or modify account details.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+      <label class="form-field-group">
+        <span class="field-label">Search Criteria</span>
+        <select id="searchField">
+          <option value="email">Search by College Email</option>
+          <option value="usn">Search by Student USN</option>
+          <option value="facultyId">Search by Faculty / Employee ID</option>
+        </select>
+      </label>
+      <label class="form-field-group">
+        <span class="field-label">Enter Exact Search Value</span>
+        <input id="searchValue" placeholder="e.g. 1MS21IS001 or name@college.edu">
+      </label>
+    </div>
+    <button id="searchBtn" class="btn-primary" style="margin-top:6px;">Search Account</button>
+    <div id="searchResults" style="margin-top:14px;"></div>
+  </div>`;
   exitManager=mountExitManagement(document.getElementById('exitManagement'));
   document.getElementById('policyForm').onsubmit=event=>{event.preventDefault();busy(event.target.querySelector('button'),async()=>{
     const data=Object.fromEntries(new FormData(event.target));for(const key of ['allowedDomains','departments','sections']) data[key]=data[key].split(',').map(v=>v.trim()).filter(Boolean);
