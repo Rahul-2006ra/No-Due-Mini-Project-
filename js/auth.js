@@ -119,7 +119,12 @@ sessionStorage.removeItem(reminderKey(profile.uid));
 window.location.href = home;
     } catch (err) {
       if (err.code === "institution/profile-missing") await signOut(auth);
-      errorEl.textContent = err.code === "institution/profile-missing" ? PROFILE_ERROR : ['unauthenticated','too-many-requests'].includes(err.code)?err.message:friendlyAuthError(err.code);
+      const isConnectionIssue = err.name === "TypeError" && (err.message.includes("fetch") || err.message.includes("network") || err.message.includes("Network"));
+      if (isConnectionIssue) {
+        errorEl.textContent = "Unable to reach server. If running locally, check server connection.";
+      } else {
+        errorEl.textContent = err.message ? err.message : (friendlyAuthError(err.code) || "Sign-in failed. Please check credentials.");
+      }
       errorEl.classList.remove("hidden");
       submitBtn.disabled = false;
       submitBtn.textContent = "Log in";
