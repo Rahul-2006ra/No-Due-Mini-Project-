@@ -118,13 +118,9 @@ if (!home) {
 sessionStorage.removeItem(reminderKey(profile.uid));
 window.location.href = home;
     } catch (err) {
+      console.error("Login attempt failed:", err);
       if (err.code === "institution/profile-missing") await signOut(auth);
-      const isConnectionIssue = err.name === "TypeError" && (err.message.includes("fetch") || err.message.includes("network") || err.message.includes("Network"));
-      if (isConnectionIssue) {
-        errorEl.textContent = "Unable to reach server. If running locally, check server connection.";
-      } else {
-        errorEl.textContent = err.message ? err.message : (friendlyAuthError(err.code) || "Sign-in failed. Please check credentials.");
-      }
+      errorEl.textContent = err.message || (err.code ? friendlyAuthError(err.code) : "Sign-in failed. Please check credentials.");
       errorEl.classList.remove("hidden");
       submitBtn.disabled = false;
       submitBtn.textContent = "Log in";
