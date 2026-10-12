@@ -16,9 +16,14 @@ export async function loginIdentity(database,identifier){
 export function authenticationRoutes(app,{database,store,auth,demo,key}){
   const attempts=new Map();
   app.post('/api/auth/login',async(req,res)=>{
-    const now=Date.now(),address=req.ip,old=attempts.get(address),budget=old&&old.until>now?old:{count:0,until:now+600000};budget.count++;attempts.set(address,budget);if(attempts.size>10000)for(const [ip,v]of attempts)if(v.until<now)attempts.delete(ip);
-    if(budget.count>100)return res.status(429).json({error:{code:'too-many-requests',message:'Too many attempts. Wait a bit and try again.'}});
-    try{if(typeof req.body.password!=='string'||!req.body.password||req.body.password.length>4096)throw invalid();const p=await loginIdentity(database,req.body.identifier),signed=await firebasePasswordCall(auth,demo,key,'signInWithPassword',{email:p.email,password:req.body.password,returnSecureToken:true});if(!signed.ok||signed.result.localId!==p._id)throw invalid();res.json({email:p.email});}catch{res.status(401).json({error:{code:'unauthenticated',message:invalid().message}});}
+    const now=Date.now(),address=req.ip,identifier=String(req.body?.identifier||'').trim().toLowerCase();
+    const ipOld=attempts.get(`ip:${address}`),ipBudget=ipOld&&ipOld.until>now?ipOld:{count:0,until:now+600000};
+    ipBudget.count++;attempts.set(`ip:${address}`,ipBudget);
+    const idOld=identifier?attempts.get(`id:${identifier}`):null,idBudget=idOld&&idOld.until>now?idOld:{count:0,until:now+900000};
+    if(identifier){idBudget.count++;attempts.set(`id:${identifier}`,idBudget);}
+    if(attempts.size>20000)for(const [k,v]of attempts)if(v.until<now)attempts.delete(k);
+    if(ipBudget.count>100||(identifier&&idBudget.count>10))return res.status(429).json({error:{code:'too-many-requests',message:'Too many attempts. Wait a bit and try again.'}});
+    try{if(typeof req.body.password!=='string'||!req.body.password||req.body.password.length>4096)throw invalid();const p=await loginIdentity(database,req.body.identifier),signed=await firebasePasswordCall(auth,demo,key,'signInWithPassword',{email:p.email,password:req.body.password,returnSecureToken:true});if(!signed.ok||signed.result.localId!==p._id)throw invalid();if(identifier)attempts.delete(`id:${identifier}`);res.json({email:p.email});}catch{res.status(401).json({error:{code:'unauthenticated',message:invalid().message}});}
   });
 }
 export async function completePasswordChange({store,auth,actor,demo,key,token}){

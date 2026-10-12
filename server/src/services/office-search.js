@@ -50,11 +50,14 @@ export async function searchOfficeStudents(db,uid,input={}){
       && (!filters.usn||row.usnKey.includes(normalizeSearch(filters.usn)))
       && (!filters.email||row.emailKey.includes(normalizeSearch(filters.email)));
   });
-  const rows=await Promise.all(matches.map(async doc=>{
+  const studentIds=matches.map(d=>d.id);
+  const requestsSnap=studentIds.length?await db.collection('noDueRequests').where('studentId','in',studentIds).where('officeId','==',uid).get():{docs:[]};
+  const latestByStudent=new Map();
+  for(const rDoc of requestsSnap.docs){const d=rDoc.data();const prev=latestByStudent.get(d.studentId);if(!prev||new Date(d.createdAt)>new Date(prev.createdAt))latestByStudent.set(d.studentId,{id:rDoc.id,...d});}
+  const rows=matches.map(doc=>{
     const {nameKey,emailKey,usnKey,searchKeys,...student}=doc.data();
-    const requests=await db.collection('noDueRequests').where('studentId','==',doc.id).where('officeId','==',uid).orderBy('createdAt','desc').limit(1).get();
-    const latest=requests.docs[0],request=latest?{id:latest.id,...latest.data()}:null;
+    const request=latestByStudent.get(doc.id)||null;
     return {...student,status:officeStatus(request),request:request?{id:request.id,status:request.status,studentName:request.studentName,usn:request.usn,semester:request.semester,section:request.section,approvalItems:request.approvalItems||{},approvalStates:request.approvalStates||{},mentorApproval:request.mentorApproval||{},hodApproval:request.hodApproval||{}}:null};
-  }));
+  });
   return {rows,count:rows.length,more,nextCursor,mode,scanned:docs.length};
 }

@@ -21,7 +21,8 @@ export async function scopeQuery(store,actor,path,query){
   if(collection==='students'){if(role==='mentor')return query.where('mentorId','==',uid);if(['subject_faculty'].includes(role))return query.where('teacherIds','array-contains',uid);if(role==='student')return query.where('__name__','==',uid);}
   if(collection==='offerings'){if(['subject_faculty','mentor'].includes(role))return query.where('teacherId','==',uid);if(role==='student'){const s=(await store.doc(`students/${uid}`).get()).data();return query.where('__name__','in',s?.offeringIds||[]);}}
   if(['enrollments','marks'].includes(collection)){if(role==='student')return query.where('studentId','==',uid);if(['subject_faculty','mentor'].includes(role))return query.where(role==='mentor'&&!query.filters.some(([field,op,value])=>field==='teacherId'&&op==='=='&&value===uid)?'mentorId':'teacherId','==',uid);}
-  if(collection==='users'&&['office','hod','library','accounts','physics_lab','chemistry_lab'].includes(role))return query.where('__name__','==',uid);
-  if(['subjects','assignments','users'].includes(collection))return query;
+  if(collection==='users'&&['office','hod','library','accounts','physics_lab','chemistry_lab','student'].includes(role))return query.where('__name__','==',uid);
+  if(collection==='users'&&role!=='admin')return query.where('role','in',['subject_faculty','mentor']);
+  if(['subjects','assignments'].includes(collection))return query;
   throw Object.assign(new Error('Forbidden collection.'),{code:'permission-denied'});
 }
