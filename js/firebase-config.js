@@ -21,19 +21,15 @@ const firebaseConfig = {
   measurementId: "G-4SRWS9J371"
 };
 // Initialize Firebase
-// Only connect to local emulator if explicitly requested via ?emulator=1 query parameter
-const emulatorParam = new URLSearchParams(location.search).get("emulator") === "1";
-if (emulatorParam) sessionStorage.setItem("digitalNoDueEmulator", "1");
-else if (new URLSearchParams(location.search).get("emulator") === "0") sessionStorage.removeItem("digitalNoDueEmulator");
+// Only connect to local emulator if explicitly requested in the active URL (?emulator=1)
+const isEmulatorExplicit = new URLSearchParams(location.search).get("emulator") === "1";
+sessionStorage.removeItem("digitalNoDueEmulator");
 
-const emulatorSession = ["localhost", "127.0.0.1"].includes(location.hostname)
-  && sessionStorage.getItem("digitalNoDueEmulator") === "1";
-
-const app = initializeApp(emulatorSession ? { apiKey: "fake-api-key", authDomain: "demo-digital-no-due.firebaseapp.com", projectId: "demo-digital-no-due", appId: "demo-digital-no-due-local" } : firebaseConfig);
+const app = initializeApp(isEmulatorExplicit ? { apiKey: "fake-api-key", authDomain: "demo-digital-no-due.firebaseapp.com", projectId: "demo-digital-no-due", appId: "demo-digital-no-due-local" } : firebaseConfig);
 export const auth = getAuth(app);
 export const db = Object.freeze({});
 export const functions = Object.freeze({});
-export const isEmulator = emulatorSession;
-if (emulatorSession) {
+export const isEmulator = isEmulatorExplicit;
+if (isEmulatorExplicit) {
   connectAuthEmulator(auth, "http://127.0.0.1:9199", { disableWarnings: true });
 }

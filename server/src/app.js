@@ -15,7 +15,8 @@ import {authenticationRoutes,completePasswordChange} from './services/authentica
 import {marksCsvRoutes} from './routes/marks-csv.js';
 export function createApp({database,client,auth,demo=false,origins=[],smtpPassword='',firebaseWebApiKey=''}){
   const app=express(),store=new DocumentStore(database,client);app.set('trust proxy',1);app.disable('x-powered-by');app.use(helmet());
-  app.use(cors({origin:(origin,callback)=>callback(null,!origin||origins.includes(origin)),methods:['GET','POST','PUT'],allowedHeaders:['Authorization','Content-Type']}));app.use(express.json({limit:'1mb'}));
+  const isAllowedOrigin = origin => !origin || origins.includes(origin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  app.use(cors({origin:(origin,callback)=>callback(null,isAllowedOrigin(origin)),methods:['GET','POST','PUT'],allowedHeaders:['Authorization','Content-Type']}));app.use(express.json({limit:'1mb'}));
   app.get('/health',async(req,res)=>{try{await database.command({ping:1});res.json({status:'ok',database:'mongodb'});}catch{res.status(503).json({status:'unavailable'});}});
   authenticationRoutes(app,{database,store,auth,demo,key:firebaseWebApiKey});
   app.use('/api',authenticate(auth,store));app.get('/api/auth/profile',(req,res)=>res.json(serialize(req.actor)));
