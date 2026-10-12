@@ -1,0 +1,20 @@
+{
+  "name": "digital-no-due-emulator-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm --prefix ../server test",
+    "emulators": "npm --prefix ../server test",
+    "preview": "node start-preview.mjs",
+    "seed": "node ../server/scripts/seed-local.mjs",
+    "verify:demo": "node --loader ./firebase-loader.mjs verify-demo.mjs",
+    "test:all": "npm --prefix ../server test",
+    "audit": "npm --prefix ../server test",
+    "seed:bulk": "node seed-bulk.mjs"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "firebase": "^12.0.0",
+    "firebase-tools": "^15.0.0"
+  }
+}
