@@ -1,6 +1,7 @@
-// Use local API if port 3000 is specifically chosen, or fall back to live Render backend
+// Automatically use local API port 3000 when running on localhost/127.0.0.1
+const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
 export const API_BASE_URL =
   globalThis.DIGITAL_NO_DUE_CONFIG?.API_BASE_URL ||
-  (new URLSearchParams(location.search).get('localApi') === '1'
+  (isLocalHost && new URLSearchParams(location.search).get('remoteApi') !== '1'
     ? 'http://127.0.0.1:3000'
     : 'https://digital-no-due-form.onrender.com');

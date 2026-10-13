@@ -23,6 +23,7 @@ firebase-audit.json
 server/.env
 server/.env.*
 !server/.env.example
+.mongo-data/
 server/.mongo-data/
 server/migration-output/
 server/*.log

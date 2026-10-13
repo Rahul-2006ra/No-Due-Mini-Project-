@@ -52,8 +52,7 @@
       "port": 5050
     },
     "ui": {
-      "enabled": true,
-      "port": 4500
+      "enabled": false
     },
     "hub": {
       "port": 4410
