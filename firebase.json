@@ -1,6 +1,13 @@
 {
   "hosting": {
     "public": ".",
+    "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "/login",
+        "destination": "/login.html"
+      }
+    ],
     "headers": [
       {
         "source": "**/*.@(css|js|svg|png|jpg|webp|woff|woff2)",
